@@ -11,7 +11,7 @@
 </style>
 </head>
 <body>
-<header><div><div class="brand">LAUNCH<span>MATE</span></div><div class="tag">Your free-first business launch cockpit</div></div><div class="btns"><button class="btn" id="saveBtn">Save workspace</button><button class="btn" id="resetBtn">Reset</button></div></header>
+<header><div><div class="brand">LAUNCH<span>MATE</span></div><div class="tag">Your free-first business launch cockpit</div></div><div class="btns"><select id="ideaSelect" aria-label="Select business idea" class="btn"></select><button class="btn" id="newIdeaBtn">+ New idea</button><button class="btn" id="deleteIdeaBtn">Delete idea</button><button class="btn" id="saveBtn">Save workspace</button><button class="btn" id="resetBtn">Reset current</button></div></header>
 <main class="wrap">
 <section class="hero"><h1>Turn your idea into a<br><em>launch-ready plan.</em></h1><p>Validate the basics, estimate your numbers, and turn your business idea into a practical action plan—without paid tools or unnecessary complexity.</p></section>
 <div class="grid">
@@ -41,7 +41,38 @@ function plan(){const d=data();return 'LAUNCHMATE — '+(d.idea||'Untitled busin
 function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
 let validation=[];
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function saveWorkspace(){localStorage.setItem('launchmate-workspace',JSON.stringify(data()))}
+const IDEAS_KEY='launchmate-ideas-v1', ACTIVE_KEY='launchmate-active-idea-v1';
+let ideas={},activeIdeaId='';
+function makeId(){return 'idea-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)}
+function currentTitle(){return $('idea').value.trim()||'Untitled business idea'}
+function saveWorkspace(){
+ const snapshot=data();
+ localStorage.setItem('launchmate-workspace',JSON.stringify(snapshot));
+ if(activeIdeaId&&ideas[activeIdeaId]){ideas[activeIdeaId].data=snapshot;ideas[activeIdeaId].title=currentTitle();localStorage.setItem(IDEAS_KEY,JSON.stringify(ideas));renderIdeaSelect()}
+}
+function renderIdeaSelect(){
+ const select=$('ideaSelect');if(!select)return;
+ select.innerHTML='';
+ Object.entries(ideas).forEach(([id,item])=>{const opt=document.createElement('option');opt.value=id;opt.textContent=item.title||'Untitled idea';select.appendChild(opt)});
+ select.value=activeIdeaId;
+}
+function switchIdea(id){
+ if(!ideas[id])return;
+ saveWorkspace();activeIdeaId=id;localStorage.setItem(ACTIVE_KEY,id);
+ restore(ideas[id].data||{});renderIdeaSelect();
+ $('msg').textContent='Loaded: '+(ideas[id].title||'Untitled idea');
+}
+function createIdea(){
+ saveWorkspace();
+ const id=makeId();ideas[id]={title:'New business idea',data:{idea:'New business idea',stage:'Idea',startup:'10000',price:'500',cost:'250',volume:'100',fixed:'5000',checks:[],validation:[]}};
+ activeIdeaId=id;localStorage.setItem(ACTIVE_KEY,id);localStorage.setItem(IDEAS_KEY,JSON.stringify(ideas));
+ restore(ideas[id].data);renderIdeaSelect();$('idea').focus();$('msg').textContent='New idea workspace created.';
+}
+function deleteIdea(){
+ if(Object.keys(ideas).length<=1){$('msg').textContent='At least one idea workspace must remain.';return}
+ if(!confirm('Delete this idea and its saved local data?'))return;
+ delete ideas[activeIdeaId];activeIdeaId=Object.keys(ideas)[0];localStorage.setItem(IDEAS_KEY,JSON.stringify(ideas));localStorage.setItem(ACTIVE_KEY,activeIdeaId);restore(ideas[activeIdeaId].data||{});renderIdeaSelect();$('msg').textContent='Idea deleted from this browser.';
+}
 function renderValidation(){
 $('vcount').textContent=validation.length;
 $('vpainAvg').textContent=validation.length?(validation.reduce((a,x)=>a+x.pain,0)/validation.length).toFixed(1)+'/5':'—';
@@ -61,5 +92,17 @@ $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('plan').te
 $('exportJson').onclick=()=>download('launchmate-workspace.json',JSON.stringify({...data(),readinessScore:score(),plan:plan()},null,2),'application/json');
 $('exportCsv').onclick=()=>{const d=data();download('launchmate-workspace.csv','field,value\n'+Object.entries(d).map(([k,v])=>'"'+k+'","'+String(v).replaceAll('"','""')+'"').join('\n'),'text/csv')};
 $('exportTxt').onclick=()=>download('launchmate-plan.txt',plan(),'text/plain');
-restore(JSON.parse(localStorage.getItem('launchmate-workspace')||'null'));renderValidation();refresh();
+const savedIdeas=JSON.parse(localStorage.getItem(IDEAS_KEY)||'null');
+if(savedIdeas&&Object.keys(savedIdeas).length){ideas=savedIdeas;activeIdeaId=localStorage.getItem(ACTIVE_KEY)||Object.keys(ideas)[0];if(!ideas[activeIdeaId])activeIdeaId=Object.keys(ideas)[0];}
+else{
+ const legacy=JSON.parse(localStorage.getItem('launchmate-workspace')||'null');
+ activeIdeaId=makeId();ideas[activeIdeaId]={title:(legacy&&legacy.idea)||'My first business idea',data:legacy||{idea:'My first business idea',stage:'Idea',startup:'10000',price:'500',cost:'250',volume:'100',fixed:'5000',checks:[],validation:[]}};
+ localStorage.setItem(IDEAS_KEY,JSON.stringify(ideas));localStorage.setItem(ACTIVE_KEY,activeIdeaId);
+}
+restore(ideas[activeIdeaId].data||{});renderIdeaSelect();renderValidation();refresh();
+$('ideaSelect').addEventListener('change',e=>switchIdea(e.target.value));
+$('newIdeaBtn').addEventListener('click',createIdea);
+$('deleteIdeaBtn').addEventListener('click',deleteIdea);
+$('idea').addEventListener('input',()=>{if(activeIdeaId&&ideas[activeIdeaId]){ideas[activeIdeaId].title=currentTitle();renderIdeaSelect()}});
+
 </script></body></html>
