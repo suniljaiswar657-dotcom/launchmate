@@ -85,8 +85,8 @@ $('addValidation').onclick=()=>{const name=$('vname').value.trim(),feedback=$('v
 $('clearValidation').onclick=()=>{if(confirm('Delete all customer validation entries?')){validation=[];renderValidation();saveWorkspace()}};
 checklist.forEach((label,i)=>{const l=document.createElement('label');l.className='check';l.innerHTML='<input type="checkbox"><span>'+label+'</span>';l.querySelector('input').addEventListener('change',refresh);$('checks').appendChild(l)});
 ids.forEach(id=>$(id).addEventListener('input',refresh));
-$('saveBtn').onclick=()=>{localStorage.setItem('launchmate-workspace',JSON.stringify(data()));$('msg').textContent='Workspace saved in this browser.'};
-$('resetBtn').onclick=()=>{if(confirm('Reset all workspace fields?')){localStorage.removeItem('launchmate-workspace');location.reload()}};
+$('saveBtn').onclick=()=>{saveWorkspace();$('msg').textContent='Workspace saved in this browser.'};
+$('resetBtn').onclick=()=>{if(confirm('Reset fields for this idea?')){const empty={idea:ideas[activeIdeaId]?.title||'New business idea',stage:'Idea',startup:'10000',price:'500',cost:'250',volume:'100',fixed:'5000',checks:[],validation:[]};ideas[activeIdeaId].data=empty;restore(empty);saveWorkspace();$('msg').textContent='Current idea reset.'}};
 $('generate').onclick=()=>{$('plan').textContent=plan();$('msg').textContent='Plan generated locally from your inputs.'};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('plan').textContent);$('msg').textContent='Plan copied.'}catch{$('msg').textContent='Copy unavailable in this browser. Select the plan text manually.'}};
 $('exportJson').onclick=()=>download('launchmate-workspace.json',JSON.stringify({...data(),readinessScore:score(),plan:plan()},null,2),'application/json');
